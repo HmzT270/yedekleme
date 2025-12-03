@@ -25,8 +25,12 @@ builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddSingleton<IEventNotificationService, EventNotificationService>();
 
-// Recommendation Service
+// Recommendation Services
+// Old service (kept as fallback)
 builder.Services.AddScoped<IRecommendationService, RecommendationService>();
+
+// New Python microservice proxy (primary)
+builder.Services.AddHttpClient<IRecommendationProxyService, RecommendationProxyService>();
 
 // CORS (React client için)
 builder.Services.AddCors(options =>

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using UniMeetApi.Services;
 
 namespace UniMeetApi.Controllers
 {
@@ -12,11 +13,16 @@ namespace UniMeetApi.Controllers
     {
         private readonly AppDbContext _db;
         private readonly ILogger<AdminController> _logger;
+        private readonly IRecommendationProxyService _recommendationProxy;
 
-        public AdminController(AppDbContext db, ILogger<AdminController> logger)
+        public AdminController(
+            AppDbContext db, 
+            ILogger<AdminController> logger,
+            IRecommendationProxyService recommendationProxy)
         {
             _db = db;
             _logger = logger;
+            _recommendationProxy = recommendationProxy;
         }
 
         // İstek/yanıt tipleri
@@ -247,6 +253,114 @@ namespace UniMeetApi.Controllers
             {
                 _logger.LogError(ex, "Başarısız bildirimler yeniden denenirken hata oluştu.");
                 return StatusCode(500, new { message = "İşlem sırasında hata oluştu." });
+            }
+        }
+
+        // ===== YENİ: Recommendation Service Yönetimi =====
+
+        /// <summary>
+        /// Python mikroservis health check
+        /// </summary>
+        [HttpGet("recommender/health")]
+        public async Task<ActionResult<object>> GetRecommenderHealth()
+        {
+            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (roleClaim != "Admin")
+                return Forbid("Sadece admin kullanıcılar bu işlemi yapabilir.");
+
+            try
+            {
+                var isHealthy = await _recommendationProxy.CheckHealthAsync();
+                
+                return Ok(new
+                {
+                    status = isHealthy ? "healthy" : "unavailable",
+                    timestamp = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Health check hatası.");
+                return StatusCode(500, new { message = "Health check başarısız." });
+            }
+        }
+
+        /// <summary>
+        /// Model konfigürasyonunu görüntüle
+        /// </summary>
+        [HttpGet("recommender/config")]
+        public async Task<ActionResult<object>> GetRecommenderConfig()
+        {
+            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (roleClaim != "Admin")
+                return Forbid("Sadece admin kullanıcılar bu işlemi yapabilir.");
+
+            try
+            {
+                var config = await _recommendationProxy.GetConfigAsync();
+                
+                if (config == null)
+                    return NotFound(new { message = "Konfigürasyon alınamadı." });
+
+                return Ok(config);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Konfigürasyon alınırken hata oluştu.");
+                return StatusCode(500, new { message = "Konfigürasyon alınamadı." });
+            }
+        }
+
+        /// <summary>
+        /// Model konfigürasyonunu güncelle (sadece scoring_weights)
+        /// </summary>
+        [HttpPut("recommender/config")]
+        public async Task<IActionResult> UpdateRecommenderConfig([FromBody] object newConfig)
+        {
+            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (roleClaim != "Admin")
+                return Forbid("Sadece admin kullanıcılar bu işlemi yapabilir.");
+
+            if (newConfig == null)
+                return BadRequest(new { message = "Konfigürasyon verisi gerekli." });
+
+            try
+            {
+                await _recommendationProxy.UpdateConfigAsync(newConfig);
+                
+                _logger.LogInformation("Recommendation service konfigürasyonu güncellendi.");
+                return Ok(new { message = "Konfigürasyon başarıyla güncellendi.", timestamp = DateTime.UtcNow });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Konfigürasyon güncellenirken hata oluştu.");
+                return StatusCode(500, new { message = "Konfigürasyon güncellenemedi." });
+            }
+        }
+
+        /// <summary>
+        /// Servis istatistiklerini görüntüle
+        /// </summary>
+        [HttpGet("recommender/stats")]
+        public async Task<ActionResult<object>> GetRecommenderStats()
+        {
+            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (roleClaim != "Admin")
+                return Forbid("Sadece admin kullanıcılar bu işlemi yapabilir.");
+
+            try
+            {
+                var stats = await _recommendationProxy.GetStatsAsync();
+                
+                if (stats == null)
+                    return NotFound(new { message = "İstatistikler alınamadı." });
+
+                return Ok(stats);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "İstatistikler alınırken hata oluştu.");
+                return StatusCode(500, new { message = "İstatistikler alınamadı." });
             }
         }
     }

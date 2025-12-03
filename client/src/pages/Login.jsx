@@ -1,6 +1,6 @@
 // src/pages/Login.jsx
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { api } from "../api/index";
 import { Button, TextField, Stack, Typography, Paper, Alert, Box } from "@mui/material";
 
@@ -230,8 +230,8 @@ export default function Login() {
           <Box sx={{ textAlign: "center" }}>
             <Typography variant="body2" color="text.secondary">
               Şifreni mi unuttun?{" "}
-              <a 
-                href="/reset-password-request" 
+              <Link 
+                to="/reset-password-request" 
                 style={{ 
                   color: "#6a4cff", 
                   textDecoration: "none", 
@@ -240,15 +240,15 @@ export default function Login() {
                 }}
               >
                 Sıfırla
-              </a>
+              </Link>
             </Typography>
           </Box>
 
           <Box sx={{ textAlign: "center" }}>
             <Typography variant="body2" color="text.secondary">
               İlk kez mi kullanıyorsun?{" "}
-              <a 
-                href="/first-time-verification" 
+              <Link 
+                to="/first-time-verification" 
                 style={{ 
                   color: "#6a4cff", 
                   textDecoration: "none", 
@@ -257,7 +257,7 @@ export default function Login() {
                 }}
               >
                 Kayıt Ol
-              </a>
+              </Link>
             </Typography>
           </Box>
         </Stack>

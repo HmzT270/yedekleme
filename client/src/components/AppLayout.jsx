@@ -23,7 +23,9 @@ export default function AppLayout() {
       case "/events": return "Etkinlikler";
       case "/clubs": return "Kulüpler";
       case "/recommendations": return "Yapay Zeka Önerileri";
+      case "/favorites": return "Favori Etkinlikler";
       case "/manageevents": return "Etkinlik Oluştur";
+      case "/admin": return "Admin Paneli";
       default: return "";
     }
   };
@@ -171,6 +173,22 @@ export default function AppLayout() {
               }}
             >
               🤖 Öneriler
+            </Button>
+
+            <Button 
+              onClick={() => navigate("/favorites")} 
+              sx={{
+                ...linkBtnSx,
+                color: "white",
+                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                px: { xs: 1, sm: 2 },
+                "&:hover": {
+                  bgcolor: "rgba(255, 255, 255, 0.15)",
+                  transform: "translateY(-1px)",
+                },
+              }}
+            >
+              ⭐ Favoriler
             </Button>
 
             {(isAdmin || isManager) && (

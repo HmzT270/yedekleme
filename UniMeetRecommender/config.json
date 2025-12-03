@@ -1,0 +1,45 @@
+{
+  "model": {
+    "version": "0.2.0",
+    "type": "hybrid",
+    "enabled_features": ["content", "temporal", "user_affinity", "popularity", "title_match"],
+    "description": "Enhanced with event title and description analysis"
+  },
+  "scoring_weights": {
+    "club_membership_match": 0.30,
+    "content_similarity": 0.20,
+    "title_match": 0.15,
+    "temporal_score": 0.15,
+    "user_past_behavior": 0.15,
+    "club_popularity": 0.05
+  },
+  "content_settings": {
+    "tfidf_max_features": 200,
+    "min_similarity": 0.1,
+    "use_turkish_stopwords": true,
+    "turkish_stopwords": [
+      "ve", "ile", "bir", "bu", "şu", "o", "için", "da", "de", "mi", "mu", "mı",
+      "ama", "fakat", "ancak", "lakin", "veya", "yahut", "ki", "çünkü", "eğer",
+      "şayet", "ise", "gibi", "kadar", "daha", "en", "çok", "az", "hem", "ya",
+      "ne", "veya", "belki", "hatta", "üzere", "dair", "gore", "karşı", "rağmen"
+    ]
+  },
+  "temporal_settings": {
+    "decay_days": 30,
+    "prefer_upcoming": true,
+    "max_days_ahead": 90,
+    "recency_weight": 0.7
+  },
+  "ranking_settings": {
+    "default_limit": 10,
+    "max_limit": 50,
+    "diversity_factor": 0.2,
+    "min_score_threshold": 0.05
+  },
+  "database": {
+    "connection_timeout": 30,
+    "pool_size": 5,
+    "pool_recycle": 3600,
+    "echo_sql": false
+  }
+}

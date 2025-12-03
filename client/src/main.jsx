@@ -10,6 +10,7 @@ import Events from "./pages/Events.jsx";
 import ManageEvents from "./pages/ManageEvents.jsx";
 import Clubs from "./pages/Clubs.jsx";
 import Recommendations from "./pages/Recommendations.jsx";
+import Favorites from "./pages/Favorites.jsx";
 import AppLayout from "./components/AppLayout.jsx";
 import ResetPasswordRequest from "./pages/ResetPasswordRequest.jsx";
 import ResetPasswordConfirm from "./pages/ResetPasswordConfirm.jsx";
@@ -30,6 +31,7 @@ const router = createBrowserRouter([
       { path: "/manageevents", element: <ManageEvents /> },
       { path: "/clubs", element: <Clubs /> },
       { path: "/recommendations", element: <Recommendations /> },
+      { path: "/favorites", element: <Favorites /> },
       { path: "/admin", element: <AdminPanel /> },
     ],
   },

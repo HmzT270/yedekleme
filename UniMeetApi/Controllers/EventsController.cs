@@ -13,12 +13,18 @@ namespace UniMeetApi.Controllers
         private readonly AppDbContext _db;
         private readonly IEventNotificationService _notificationService;
         private readonly IRecommendationService _recommendationService;
+        private readonly IRecommendationProxyService _recommendationProxy;
         
-        public EventsController(AppDbContext db, IEventNotificationService notificationService, IRecommendationService recommendationService)
+        public EventsController(
+            AppDbContext db, 
+            IEventNotificationService notificationService, 
+            IRecommendationService recommendationService,
+            IRecommendationProxyService recommendationProxy)
         {
             _db = db;
             _notificationService = notificationService;
             _recommendationService = recommendationService;
+            _recommendationProxy = recommendationProxy;
         }
 
         // === DTOs ===
@@ -37,6 +43,27 @@ namespace UniMeetApi.Controllers
             int AttendeesCount,
             bool IsMember,
             bool IsJoined
+        );
+
+        public record RecommendedEventDto(
+            int EventId,
+            string Title,
+            string Location,
+            DateTime StartAt,
+            DateTime? EndAt,
+            int Quota,
+            int ClubId,
+            string? ClubName,
+            string? Description,
+            bool IsCancelled,
+            bool IsPublic,
+            int AttendeesCount,
+            bool IsMember,
+            bool IsJoined,
+            double Score,
+            string RecommendationReason,
+            string ReasonDetails,
+            Dictionary<string, double>? ReasonFeatures
         );
 
         public record CreateEventRequest(
@@ -563,28 +590,41 @@ namespace UniMeetApi.Controllers
         // === ✅ YENİ: Takip edilen kulüplere benzer kulüplerden etkinlik önerileri ===
         [HttpGet("recommendations")]
         [Authorize]
-        public async Task<ActionResult<List<EventDto>>> GetRecommendations()
+        public async Task<ActionResult<List<RecommendedEventDto>>> GetRecommendations()
         {
             if (!TryGetUserId(out var userId))
                 return Unauthorized("Kullanıcı bilgisi alınamadı.");
 
-            // RecommendationService'den benzer kulüplerin etkinliklerini al
-            var recommendedEvents = await _recommendationService.GetRecommendedEventsAsync(userId);
+            // YENİ: Python mikroservis proxy'sini kullan - detaylı sonuçlarla
+            var recommendationResponse = await _recommendationProxy.GetDetailedRecommendationsAsync(userId, limit: 10);
 
             var userClubIds = await _db.ClubMembers.Where(m => m.UserId == userId).Select(m => m.ClubId).ToListAsync();
             var userClubSet = new HashSet<int>(userClubIds);
             var userEventIds = await _db.Set<EventAttendee>().Where(a => a.UserId == userId).Select(a => a.EventId).ToListAsync();
             var userEventSet = new HashSet<int>(userEventIds);
 
-            var list = new List<EventDto>();
-            foreach (var e in recommendedEvents)
+            var eventIds = recommendationResponse.Recommendations.Select(r => r.EventId).ToList();
+            var events = await _db.Events.Where(e => eventIds.Contains(e.EventId)).ToDictionaryAsync(e => e.EventId);
+            var clubNames = await _db.Clubs.Where(c => events.Values.Select(e => e.ClubId).Contains(c.ClubId))
+                .ToDictionaryAsync(c => c.ClubId, c => c.Name);
+            var attendeeCounts = await _db.Set<EventAttendee>()
+                .Where(a => eventIds.Contains(a.EventId))
+                .GroupBy(a => a.EventId)
+                .Select(g => new { EventId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.EventId, x => x.Count);
+
+            var list = new List<RecommendedEventDto>();
+            foreach (var recommendation in recommendationResponse.Recommendations)
             {
-                var clubName = await _db.Clubs.Where(c => c.ClubId == e.ClubId).Select(c => (string?)c.Name).FirstOrDefaultAsync();
-                var attendeesCount = await _db.Set<EventAttendee>().CountAsync(a => a.EventId == e.EventId);
+                if (!events.TryGetValue(recommendation.EventId, out var e))
+                    continue;
+
+                var clubName = clubNames.GetValueOrDefault(e.ClubId);
+                var attendeesCount = attendeeCounts.GetValueOrDefault(e.EventId, 0);
                 var isMember = userClubSet.Contains(e.ClubId);
                 var isJoined = userEventSet.Contains(e.EventId);
 
-                list.Add(new EventDto(
+                list.Add(new RecommendedEventDto(
                     e.EventId,
                     e.Title,
                     e.Location,
@@ -598,7 +638,11 @@ namespace UniMeetApi.Controllers
                     e.IsPublic,
                     attendeesCount,
                     isMember,
-                    isJoined
+                    isJoined,
+                    recommendation.Score,
+                    recommendation.Reason.Primary,
+                    recommendation.Reason.Details,
+                    recommendation.Reason.Features
                 ));
             }
 

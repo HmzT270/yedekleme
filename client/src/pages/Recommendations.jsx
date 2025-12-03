@@ -80,6 +80,9 @@ export default function Recommendations() {
 
         let { data } = await api.get("/api/Events/recommendations");
         
+        console.log("🤖 Yapay Zeka Önerileri:", data);
+        console.log(`✅ ${data?.length || 0} etkinlik önerildi`);
+        
         // Fallback: Eğer hiçbir etkinlik önerilmediyse, tüm etkinlikleri göster
         if (!data || data.length === 0) {
           console.log("⚠️ Fallback: Önerilen etkinlik yok, tüm etkinlikler gösteriliyor");

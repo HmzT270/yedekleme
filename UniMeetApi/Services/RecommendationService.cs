@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
+#pragma warning disable CS0618 // Type or member is obsolete
+
 namespace UniMeetApi.Services
 {
     public interface IRecommendationService
@@ -12,6 +14,13 @@ namespace UniMeetApi.Services
         Task<List<Event>> GetRecommendedEventsAsync(int userId);
     }
 
+    /// <summary>
+    /// DEPRECATED: This service is being replaced by Python-based microservice.
+    /// Use RecommendationProxyService instead.
+    /// This service is kept as fallback for compatibility.
+    /// Will be removed in v2.0.
+    /// </summary>
+    [Obsolete("This service is deprecated. Use RecommendationProxyService instead. Will be removed in v2.0.", false)]
     public class RecommendationService : IRecommendationService
     {
         private readonly AppDbContext _context;
@@ -64,6 +73,13 @@ namespace UniMeetApi.Services
 
         public async Task<List<Event>> GetRecommendedEventsAsync(int userId)
         {
+            _logger.LogWarning(
+                "⚠️ DEPRECATED: RecommendationService.GetRecommendedEventsAsync called for UserId {UserId}. " +
+                "This service is deprecated and will be removed in v2.0. " +
+                "Please use RecommendationProxyService instead.",
+                userId
+            );
+
             // 1. Kullanıcının takip ettiği kulüpleri al
             var followedClubIds = await _context.ClubMembers
                 .Where(cm => cm.UserId == userId)
