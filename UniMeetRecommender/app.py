@@ -4,7 +4,7 @@ Provides REST endpoints for event recommendations
 """
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 from typing import Dict, Optional
 from flask import Flask, request, jsonify
@@ -89,7 +89,7 @@ def update_stats(latency_ms: float):
     """Update request statistics"""
     request_stats['total_requests'] += 1
     request_stats['total_latency_ms'] += latency_ms
-    request_stats['last_request_time'] = datetime.utcnow().isoformat() + 'Z'
+    request_stats['last_request_time'] = datetime.now(timezone.utc).isoformat()
 
 
 # ===== API ENDPOINTS =====
@@ -103,7 +103,7 @@ def health_check():
         return jsonify({
             'status': 'ok' if db_healthy else 'degraded',
             'version': recommender.config['model']['version'] if recommender else 'unknown',
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'database': 'connected' if db_healthy else 'disconnected'
         }), 200 if db_healthy else 503
     except Exception as e:
@@ -226,7 +226,7 @@ def update_config():
         
         return jsonify({
             'status': 'updated',
-            'timestamp': datetime.utcnow().isoformat() + 'Z'
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }), 200
         
     except Exception as e:
@@ -243,7 +243,7 @@ def reload_config():
         
         return jsonify({
             'status': 'reloaded',
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'version': recommender.config['model']['version']
         }), 200
         

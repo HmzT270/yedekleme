@@ -5,7 +5,7 @@ Handles SQL Server connections and data extraction
 import os
 import urllib
 from typing import List, Dict, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import pandas as pd
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
@@ -28,6 +28,15 @@ class DatabaseConnector:
         self.engine = self._create_engine(connection_string)
         logger.info("Database connector initialized", 
                    pool_size=config.get('pool_size', 5))
+    
+    def _localize_datetime_columns(self, df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
+        """Convert naive datetime columns to UTC timezone-aware"""
+        for col in columns:
+            if col in df.columns and pd.api.types.is_datetime64_any_dtype(df[col]):
+                # If naive, localize to UTC
+                if df[col].dt.tz is None:
+                    df[col] = df[col].dt.tz_localize('UTC')
+        return df
     
     def _create_engine(self, connection_string: str) -> Engine:
         """Create SQLAlchemy engine with connection pooling"""
@@ -181,6 +190,9 @@ class DatabaseConnector:
             df['Description'] = df['Description'].fillna('')
             df['EndAt'] = df['EndAt'].fillna(df['StartAt'])
             
+            # Localize datetime columns to UTC
+            df = self._localize_datetime_columns(df, ['StartAt', 'EndAt', 'CreatedAt'])
+            
             logger.debug(f"Fetched {len(df)} events", filters=filters or {})
             return df
         except Exception as e:
@@ -198,7 +210,7 @@ class DatabaseConnector:
         Returns:
             DataFrame with user's event interaction history
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days_back)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
         
         query = text("""
             SELECT DISTINCT
@@ -221,7 +233,10 @@ class DatabaseConnector:
             with self.engine.connect() as conn:
                 df = pd.read_sql(query, conn, params={"user_id": user_id, "cutoff_date": cutoff_date})
             
-            logger.debug(f"Fetched {len(df)} event interactions for user {user_id}")
+            # Localize datetime columns to UTC
+            df = self._localize_datetime_columns(df, ['StartAt', 'AttendedAt', 'FavoritedAt'])
+            
+            logger.debug(f"Fetched {len(df)} history records for user {user_id}")
             return df
         except Exception as e:
             logger.error(f"Error fetching event history for user {user_id}: {str(e)}")
@@ -288,7 +303,7 @@ class DatabaseConnector:
         Returns:
             Dict mapping ClubId to event count
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days_back)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
         
         query = text("""
             SELECT ClubId, COUNT(*) as EventCount

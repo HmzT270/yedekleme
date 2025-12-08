@@ -4,7 +4,7 @@ Extracts and computes features for recommendation scoring
 """
 import re
 from typing import List, Dict, Tuple, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -148,7 +148,7 @@ class FeatureEngine:
         
         # Get user club vectors (average if multiple)
         user_vectors = self.club_vectors[user_club_indices]
-        user_vector_avg = user_vectors.mean(axis=0)
+        user_vector_avg = np.asarray(user_vectors.mean(axis=0))
         
         # Calculate similarity for each event
         similarities = []
@@ -255,7 +255,7 @@ class FeatureEngine:
                 'temporal_score': []
             })
         
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Calculate days until event
         events_df = events_df.copy()

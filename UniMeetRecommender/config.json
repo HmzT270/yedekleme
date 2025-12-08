@@ -31,10 +31,10 @@
     "recency_weight": 0.7
   },
   "ranking_settings": {
-    "default_limit": 10,
-    "max_limit": 50,
+    "default_limit": 1,
+    "max_limit": 1,
     "diversity_factor": 0.2,
-    "min_score_threshold": 0.05
+    "min_score_threshold": 0.0
   },
   "database": {
     "connection_timeout": 30,
