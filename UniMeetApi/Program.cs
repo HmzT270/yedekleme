@@ -25,9 +25,6 @@ builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddSingleton<IEventNotificationService, EventNotificationService>();
 
-// Recommendation Service
-builder.Services.AddScoped<IRecommendationService, RecommendationService>();
-
 // CORS (React client için)
 builder.Services.AddCors(options =>
 {

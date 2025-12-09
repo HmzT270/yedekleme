@@ -12,13 +12,11 @@ namespace UniMeetApi.Controllers
     {
         private readonly AppDbContext _db;
         private readonly IEventNotificationService _notificationService;
-        private readonly IRecommendationService _recommendationService;
         
-        public EventsController(AppDbContext db, IEventNotificationService notificationService, IRecommendationService recommendationService)
+        public EventsController(AppDbContext db, IEventNotificationService notificationService)
         {
             _db = db;
             _notificationService = notificationService;
-            _recommendationService = recommendationService;
         }
 
         // === DTOs ===
@@ -558,92 +556,6 @@ namespace UniMeetApi.Controllers
             }
 
             return Ok(list);
-        }
-
-        // === ✅ YENİ: Takip edilen kulüplere benzer kulüplerden etkinlik önerileri ===
-        [HttpGet("recommendations")]
-        [Authorize]
-        public async Task<ActionResult<List<EventDto>>> GetRecommendations()
-        {
-            if (!TryGetUserId(out var userId))
-                return Unauthorized("Kullanıcı bilgisi alınamadı.");
-
-            // RecommendationService'den benzer kulüplerin etkinliklerini al
-            var recommendedEvents = await _recommendationService.GetRecommendedEventsAsync(userId);
-
-            var userClubIds = await _db.ClubMembers.Where(m => m.UserId == userId).Select(m => m.ClubId).ToListAsync();
-            var userClubSet = new HashSet<int>(userClubIds);
-            var userEventIds = await _db.Set<EventAttendee>().Where(a => a.UserId == userId).Select(a => a.EventId).ToListAsync();
-            var userEventSet = new HashSet<int>(userEventIds);
-
-            var list = new List<EventDto>();
-            foreach (var e in recommendedEvents)
-            {
-                var clubName = await _db.Clubs.Where(c => c.ClubId == e.ClubId).Select(c => (string?)c.Name).FirstOrDefaultAsync();
-                var attendeesCount = await _db.Set<EventAttendee>().CountAsync(a => a.EventId == e.EventId);
-                var isMember = userClubSet.Contains(e.ClubId);
-                var isJoined = userEventSet.Contains(e.EventId);
-
-                list.Add(new EventDto(
-                    e.EventId,
-                    e.Title,
-                    e.Location,
-                    e.StartAt,
-                    e.EndAt,
-                    e.Quota,
-                    e.ClubId,
-                    clubName,
-                    e.Description,
-                    e.IsCancelled,
-                    e.IsPublic,
-                    attendeesCount,
-                    isMember,
-                    isJoined
-                ));
-            }
-
-            return Ok(list);
-        }
-
-        // === ✅ DEBUG: Recommendation debug info ===
-        [HttpGet("recommendations-debug")]
-        [Authorize]
-        public async Task<ActionResult<object>> RecommendationsDebug()
-        {
-            if (!TryGetUserId(out var userId))
-                return Unauthorized("Kullanıcı bilgisi alınamadı.");
-
-            // Kullanıcının takip ettiği kulüpler
-            var followedClubIds = await _db.ClubMembers
-                .Where(m => m.UserId == userId)
-                .Select(m => m.ClubId)
-                .ToListAsync();
-
-            var followedClubs = await _db.Clubs
-                .Where(c => followedClubIds.Contains(c.ClubId))
-                .Select(c => new { c.ClubId, c.Name, c.Description, c.Purpose })
-                .ToListAsync();
-
-            var allClubs = await _db.Clubs
-                .Select(c => new { c.ClubId, c.Name, c.Description, c.Purpose })
-                .ToListAsync();
-
-            var allEvents = await _db.Events
-                .Where(e => !e.IsCancelled && e.IsPublic)
-                .Select(e => new { e.EventId, e.Title, e.ClubId, e.StartAt })
-                .ToListAsync();
-
-            return Ok(new
-            {
-                userId,
-                followedClubCount = followedClubIds.Count,
-                followedClubIds,
-                followedClubs,
-                totalClubsCount = allClubs.Count,
-                allClubs,
-                totalPublicEventsCount = allEvents.Count,
-                eventsByClub = allEvents.GroupBy(e => e.ClubId).Select(g => new { clubId = g.Key, eventCount = g.Count() }).ToList()
-            });
         }
     }
 }
